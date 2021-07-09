@@ -53,12 +53,9 @@ fn on_connect(mut stream: TcpStream) {
     let file = get_dynamic_page(request_line.path);
     if file.is_none() {
         let text = std::fs::read_to_string("404.html").unwrap();
-        let response = format!("HTTP/1.1 404 Not Found\r\nContent-Type: text/html\r\nContent-Length: {}\r\n\r\n{}", html.len(), html);
+        let response = format!("HTTP/1.1 404 Not Found\r\nContent-Type: text/html\r\nContent-Length: {}\r\n\r\n{}", text.len(), text);
         stream.write(&response.as_bytes());
     }
-    //let mut html = std::fs::read_to_string("index.html").unwrap();
-    //let mut response = format!("HTTP/1.1 200 OK\r\nContent-Type: text/html\r\nContent-Length: {}\r\n\r\n{}", html.len(), html);
-    //stream.write(&response.as_bytes());
 }
 
 fn get_dynamic_page(path: &str) -> Option<&str> {
