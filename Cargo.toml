@@ -1,5 +1,5 @@
 [package]
-name = "Wexob"
+name = "wexob"
 version = "0.1.0"
 authors = ["Exopteron <exopteron@protonmail.com>"]
 edition = "2018"
