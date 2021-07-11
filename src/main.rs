@@ -1,64 +1,45 @@
-// Copyright (c) 2021 Exopteron, Galaxtone
-// Licensed under GNU General Public License v3
+//#![deny(warnings)]
 
-use std::net::{TcpListener, TcpStream};
-use std::io::{Read, Write};
-fn main() {
-    let listener = TcpListener::bind("127.0.0.1:7878").unwrap();
-    for stream in listener.incoming() {
-        std::thread::spawn(move || {
-            on_connect(stream.unwrap()); 
-        });
+use std::convert::Infallible;
+
+use hyper::service::{make_service_fn, service_fn};
+use hyper::http;
+use hyper::{Body, Request, Response, server};
+
+async fn hello(request: Request<Body>) -> Result<Response<Body>, Infallible> {
+    println!("Request: {:?}", request.uri());
+    if request.uri() == "/" {
+        let mut builder = Response::builder()
+        .status(http::StatusCode::OK);
+        Ok(builder.body(Body::from("<h1>g</h1>")).unwrap())
+        //Ok(Response::new(Body::from("Hello World!")))
+    } else {
+        let mut builder = Response::builder()
+            .status(http::StatusCode::NOT_FOUND);
+        Ok(builder.body(Body::from("Not found.")).unwrap())
     }
 }
 
-#[non_exhaustive]
-enum Method {
-    Get
-}
+#[tokio::main]
+pub async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
+    //pretty_env_logger::init();
 
-// Request-Line = Method SP Request-URI SP HTTP-Version CRLF
-#[derive(Default)]
-struct RequestLine {
-    method: String,
-    path: String,
-    version: String,
-}
+    // For every connection, we must make a `Service` to handle all
+    // incoming HTTP requests on said connection.
+    let make_svc = make_service_fn(|_conn| {
+        // This is the `Service` that will handle the connection.
+        // `service_fn` is a helper to convert a function that
+        // returns a Response into a `Service`.
+        async { Ok::<_, Infallible>(service_fn(hello)) }
+    });
 
-impl RequestLine {
-    pub fn new(line: &str) -> RequestLine {
-        let parts: Vec<&str> = line.split(" ").collect();
-        RequestLine {
-            method: parts[0].to_string(),
-            path: parts[1].to_string(),
-            version: parts[2].to_string(),
-        }
-    }
-}
+    let addr = ([127, 0, 0, 1], 3000).into();
 
-// https://www.w3.org/Protocols/rfc2616/rfc2616-sec5.html
-// Official documentation on HTTP, with grammar lines
+    let server = server::Server::bind(&addr).serve(make_svc);
 
-fn on_connect(mut stream: TcpStream) {
-    println!("Connection!");
-    let mut bytes = vec![0; 1024];
-    let bytescount = stream.read(&mut bytes).unwrap();
-    bytes.drain(bytescount..);
-    println!("Bytes: {:?}", String::from_utf8_lossy(&bytes));
+    println!("Listening on http://{}", addr);
 
-    let raw_request = String::from_utf8_lossy(&bytes);
-    let lines: Vec<&str> = raw_request.split("\r\n").collect();
-    let request_line = RequestLine::new(lines[0]);
+    server.await?;
 
-    let file = get_dynamic_page(request_line.path);
-    if file.is_none() {
-        let text = std::fs::read_to_string("404.html").unwrap();
-        let response = format!("HTTP/1.1 404 Not Found\r\nContent-Type: text/html\r\nContent-Length: {}\r\n\r\n{}", text.len(), text);
-        stream.write(&response.as_bytes());
-    }
-}
-
-fn get_dynamic_page(path: &str) -> Option<&str> {
-    None
-    // returns None if it doesn't exist, serve file
+    Ok(())
 }
